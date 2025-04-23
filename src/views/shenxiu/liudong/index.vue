@@ -58,17 +58,17 @@
         >新增
         </el-button>
       </el-col>
-      <el-col :span="1.5">
-        <el-button
-            type="success"
-            plain
-            icon="Edit"
-            :disabled="single"
-            @click="handleUpdate"
-            v-hasPermi="['shenxiu:liudong:edit']"
-        >修改
-        </el-button>
-      </el-col>
+<!--      <el-col :span="1.5">-->
+<!--        <el-button-->
+<!--            type="success"-->
+<!--            plain-->
+<!--            icon="Edit"-->
+<!--            :disabled="single"-->
+<!--            @click="handleUpdate"-->
+<!--            v-hasPermi="['shenxiu:liudong:edit']"-->
+<!--        >修改-->
+<!--        </el-button>-->
+<!--      </el-col>-->
       <el-col :span="1.5">
         <el-button
             type="danger"
@@ -107,21 +107,35 @@
           <dict-tag :options="cangpinjibie" :value="scope.row.dengji"/>
         </template>
       </el-table-column>
-      <el-table-column label="状态" align="center" prop="zhuangtai">
-        <template #default="scope">
-          <dict-tag :options="liudongleixing" :value="scope.row.zhuangtai"/>
-        </template>
-      </el-table-column>
+      <el-table-column label="目的地" align="center" prop="dest"/>
       <el-table-column label="借阅类型" align="center" prop="jieyueleixing">
         <template #default="scope">
           <dict-tag :options="jieyueleixing" :value="scope.row.jieyueleixing"/>
         </template>
       </el-table-column>
+      <el-table-column label="状态" align="center" prop="zhuangtai">
+        <template #default="scope">
+          <dict-tag :options="liudongleixing" :value="scope.row.zhuangtai"/>
+        </template>
+      </el-table-column>
 
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)"
-                     v-hasPermi="['shenxiu:liudong:edit']">修改
+          <el-button link type="primary" icon="Operation" @click="handleApprove(scope.row)"
+                     v-if="scope.row.zhuangtai == 'pending_approval'"
+                     v-hasPermi="['shenxiu:liudong:approve']">审核通过
+          </el-button>
+          <el-button link type="primary" icon="CircleClose" @click="handleReject(scope.row)"
+                     v-if="scope.row.zhuangtai == 'pending_approval'"
+                     v-hasPermi="['shenxiu:liudong:cancel']">审核拒绝
+          </el-button>
+          <el-button link type="primary" icon="Plus" @click="handleBack(scope.row)"
+                     v-if="scope.row.zhuangtai == 'passed'"
+                     v-hasPermi="['shenxiu:liudong:back']">归还审核
+          </el-button>
+          <el-button link type="primary" icon="Refresh" @click="handleReturned(scope.row)"
+                     v-if="scope.row.zhuangtai == 'back_approval'"
+                     v-hasPermi="['shenxiu:liudong:returned']">归还
           </el-button>
           <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)"
                      v-hasPermi="['shenxiu:liudong:remove']">删除
@@ -142,7 +156,7 @@
     <el-dialog :title="title" v-model="open" width="50%" append-to-body>
       <el-form ref="liudongRef" :model="form" :rules="rules" label-width="80px">
         <el-form-item label="藏品" prop="cangpinId">
-          <el-select v-model="form.cangpinId" placeholder="请选择藏品">
+          <el-select v-model="form.cangpinId" placeholder="请选择藏品" style="width:30%">
             <el-option
                 v-for="dict in seleltCangpinId"
                 :key="dict.selectKey"
@@ -151,18 +165,12 @@
             ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="状态" prop="zhuangtai">
-          <el-select v-model="form.zhuangtai" placeholder="请选择状态">
-            <el-option
-                v-for="dict in liudongleixing"
-                :key="dict.value"
-                :label="dict.label"
-                :value="dict.value"
-            ></el-option>
-          </el-select>
+        <el-form-item label="目的地" prop="dest">
+          <el-input v-model="form.dest" placeholder="目的地" style="width:30%">
+          </el-input>
         </el-form-item>
         <el-form-item label="借阅类型" prop="jieyueleixing">
-          <el-select v-model="form.jieyueleixing" placeholder="请选择借阅类型">
+          <el-select v-model="form.jieyueleixing" placeholder="请选择借阅类型" style="width:30%">
             <el-option
                 v-for="dict in jieyueleixing"
                 :key="dict.value"
@@ -183,7 +191,7 @@
 </template>
 
 <script setup name="Liudong">
-import {listLiudong, getLiudong, delLiudong, addLiudong, updateLiudong, physicalInterface} from "@/api/shenxiu/liudong";
+import {listLiudong, getLiudong, delLiudong, addLiudong, updateLiudong, approveLiudong, rejectLiudong, backLiudong, returnedLiudong, physicalInterface} from "@/api/shenxiu/liudong";
 import {getToken} from "@/utils/auth.js";
 
 const {proxy} = getCurrentInstance();
@@ -212,7 +220,17 @@ const data = reactive({
     zhutu: null,
     dengji: null,
   },
-  rules: {},
+  rules: {
+    cangpinId: [
+      { required: true, message: "藏品不能为空", trigger: "change" }
+    ],
+    dest: [
+      { required: true, message: "目的地不能为空", trigger: "blur" }
+    ],
+    jieyueleixing: [
+      { required: true, message: "借阅类型不能为空", trigger: "change" }
+    ],
+  },
 });
 
 const {queryParams, form, rules} = toRefs(data);
@@ -271,17 +289,6 @@ function handleAdd() {
   title.value = "添加藏品流动信息";
 }
 
-/** 修改按钮操作 */
-function handleUpdate(row) {
-  reset();
-  const _id = row.id || ids.value
-  getLiudong(_id).then(response => {
-    form.value = response.data;
-    open.value = true;
-    title.value = "修改藏品流动信息";
-  });
-}
-
 /** 提交按钮 */
 function submitForm() {
   proxy.$refs["liudongRef"].validate(valid => {
@@ -301,6 +308,58 @@ function submitForm() {
       }
     }
   });
+}
+
+/** 审核通过 */
+function handleApprove(row){
+  const _ids = row.id;
+  proxy.$modal.confirm('是否确认审核通过？').then(function () {
+    return approveLiudong(_ids);
+  }).then(() => {
+    getList();
+    proxy.$modal.msgSuccess("审核通过");
+  }).catch(() => {
+
+  })
+}
+
+/** 审核拒绝 */
+function handleReject(row){
+  const _ids = row.id;
+  proxy.$modal.confirm('是否确认审核拒绝？').then(function () {
+    return rejectLiudong(_ids);
+  }).then(() => {
+    getList();
+    proxy.$modal.msgSuccess("审核拒绝成功");
+  }).catch(() => {
+
+  })
+}
+
+/** 归还审核 */
+function handleBack(row){
+  const _ids = row.id;
+  proxy.$modal.confirm('是否确认归还？').then(function () {
+    return backLiudong(_ids);
+  }).then(() => {
+    getList();
+    proxy.$modal.msgSuccess("归还审核提交成功");
+  }).catch(() => {
+
+  })
+}
+
+/** 归还审核成功 */
+function handleReturned(row){
+  const _ids = row.id;
+  proxy.$modal.confirm('是否确认归还成功？').then(function () {
+    return returnedLiudong(_ids);
+  }).then(() => {
+    getList();
+    proxy.$modal.msgSuccess("归还成功");
+  }).catch(() => {
+
+  })
 }
 
 /** 删除按钮操作 */

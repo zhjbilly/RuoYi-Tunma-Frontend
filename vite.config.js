@@ -31,8 +31,9 @@ export default defineConfig(({ mode, command }) => {
       proxy: {
         // https://cn.vitejs.dev/config/#server-proxy
         '/dev-api': {
-          target: 'http://v4.tunma.top:19000',
+          // target: 'http://v4.tunma.top:19000',
           // target: '/',
+          target: 'http://localhost:19000',
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/dev-api/, '')
         }

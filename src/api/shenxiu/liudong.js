@@ -43,6 +43,38 @@ export function delLiudong(id) {
   })
 }
 
+// 流动审核通过
+export function approveLiudong(id) {
+  return request({
+    url: '/shenxiu/liudong/pass/' + id,
+    method: 'get'
+  })
+}
+
+// 流动审核拒绝
+export function rejectLiudong(id) {
+  return request({
+    url: '/shenxiu/liudong/reject/' + id,
+    method: 'get'
+  })
+}
+
+// 归还审核
+export function backLiudong(id) {
+  return request({
+    url: '/shenxiu/liudong/back/' + id,
+    method: 'get'
+  })
+}
+
+// 归还审核通过
+export function returnedLiudong(id) {
+  return request({
+    url: '/shenxiu/liudong/returned/' + id,
+    method: 'get'
+  })
+}
+
 export function physicalInterface(url) {
   return request({
     url: url,
